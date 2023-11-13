@@ -1,0 +1,29 @@
+.tooltip {
+    position: absolute;
+    text-align: center;
+    padding: 8px;
+    font: 14px sans-serif;
+    background: white;
+    border: 0px;
+    border-radius: 8px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 10; 
+}
+
+.tooltip b {
+    color: red;
+    font-weight: bold;
+    font-size: 16px; 
+}
+
+.hover-border {
+    cursor: pointer;
+  }
+  
+  .hover-border:hover {
+    stroke: red; /* SVG elements use 'stroke' instead of 'border' */
+    stroke-width: 3px; /* Makes the stroke 'bold' */
+  }
+  

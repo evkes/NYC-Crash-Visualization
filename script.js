@@ -9,7 +9,7 @@ var dimensions = {
     }
 };
 
-const maxCount = 500000;
+const maxCount = 24000;
 
 const colorScale = d3.scaleLinear()
     .domain([0, maxCount])
@@ -126,7 +126,6 @@ function vehiclesCount(data) {
     });
 
     let filteredVehicles = Object.entries(vehicleCounts)
-        .filter(([type, count]) => count > 3000)
         .map(([type, count]) => ({
             type,
             count
@@ -267,7 +266,7 @@ function drawFactorsChart(factorCounts, dimensions, colorScale) {
         .domain([0, maxCount])
         .range([10, 100]);
 
-    const labelThreshold = 10000;
+    const labelThreshold = 1000;
 
     let simulation = d3.forceSimulation(factors)
         .force("charge", d3.forceManyBody().strength(15))
