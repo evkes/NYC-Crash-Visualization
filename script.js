@@ -303,7 +303,7 @@ function drawFactorsChart(factorCounts, dimensions, colorScale) {
         .domain([0, maxCount])
         .range([10, 100]);
 
-    const labelThreshold = 1000;
+    const labelThreshold = maxCount * 0.05;
 
     let simulation = d3.forceSimulation(factors)
         .force("charge", d3.forceManyBody().strength(15))
