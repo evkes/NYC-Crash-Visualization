@@ -44,6 +44,7 @@ d3.csv("cleaned_crash_data_zipc.csv").then(data => {
     drawTimesChart(timeCounts, dimensions);
     drawFactorsChart(bubbleCounts, dimensions, colorScale);
     drawVehiclesChart(vehicleCounts, dimensions, colorScale);
+    drawIndividChart(globdata, dimensions);
 
     d3.json("Borough_Boundaries.geojson").then(geoData => {
         globgeodata = geoData
@@ -59,6 +60,7 @@ function filterDataByBorough(borough) {
     drawTimesChart(timesCount(filteredData), dimensions);
     drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
     drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
+    drawIndividChart(filteredData, dimensions);
 }
 
 function filterDataByAttribute(attribute) {
@@ -70,6 +72,7 @@ function filterDataByAttribute(attribute) {
     drawTimesChart(timesCount(filteredData), dimensions);
     drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
     drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
+    drawIndividChart(filteredData, dimensions);
 }
 
 function filterDataByTime(time) {
@@ -82,6 +85,7 @@ function filterDataByTime(time) {
     drawTimesChart(timesCount(filteredData), dimensions);
     drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
     drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
+    drawIndividChart(filteredData, dimensions);
 }
 
 
@@ -439,43 +443,39 @@ function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
 };
 
 
-// d3.csv("cleaned_crash_data_zipc.csv").then(data => {
+function drawIndividChart(indivdata, dimensions) {
 
-//     var svgWidth = 600, svgHeight = 400;
-//     var padding = { top: 20, right: 40, bottom: 30, left: 50 };
+    d3.select('#funny').selectAll("*").remove();
 
-//     // Create SVG element
-//     var svg = d3.select('#funny') // This should be the selector to the element where you want to append the SVG
-//         .attr('width', svgWidth)
-//         .attr('height', svgHeight);
+    var padding = { top: 20, right: 40, bottom: 30, left: 50 };
 
-//     // Set up scales
-//     var xScale = d3.scaleLinear()
-//         .domain(d3.extent(data, function (d) { return d.LONGITUDE; }))
-//         .range([padding.left, svgWidth - padding.right]);
+    var svg = d3.select('#funny') 
+        .attr("width", dimensions.svgWidth)
+        .attr("height", dimensions.svgHeight)
 
-//     var yScale = d3.scaleLinear()
-//         .domain(d3.extent(data, function (d) { return d.LATITUDE; }))
-//         .range([svgHeight - padding.bottom, padding.top]);
+    var xScale = d3.scaleLinear()
+        .domain(d3.extent(indivdata, function (d) { return d.LONGITUDE; }))
+        .range([padding.left, dimensions.svgWidth - padding.right]);
 
-//     // Add X axis
-//     svg.append('g')
-//         .attr('transform', 'translate(0,' + (svgHeight - padding.bottom) + ')')
-//         .call(d3.axisBottom(xScale));
+    var yScale = d3.scaleLinear()
+        .domain(d3.extent(indivdata, function (d) { return d.LATITUDE; }))
+        .range([dimensions.svgHeight - padding.bottom, padding.top]);
 
-//     // Add Y axis
-//     svg.append('g')
-//         .attr('transform', 'translate(' + padding.left + ',0)')
-//         .call(d3.axisLeft(yScale));
+    svg.append('g')
+        .attr('transform', 'translate(0,' + (dimensions.svgHeight - padding.bottom) + ')')
+        .call(d3.axisBottom(xScale));
 
-//     // Add dots
-//     svg.append('g')
-//         .selectAll('dot')
-//         .data(data)
-//         .enter()
-//         .append('circle')
-//         .attr('cx', function (d) { return xScale(d.LONGITUDE); })
-//         .attr('cy', function (d) { return yScale(d.LATITUDE); })
-//         .attr('r', 3) // Radius of the dots
-//         .style('fill', '#69b3a2');
-// });
+    svg.append('g')
+        .attr('transform', 'translate(' + padding.left + ',0)')
+        .call(d3.axisLeft(yScale));
+
+    svg.append('g')
+        .selectAll('dot')
+        .data(indivdata)
+        .enter()
+        .append('circle')
+        .attr('cx', function (d) { return xScale(d.LONGITUDE); })
+        .attr('cy', function (d) { return yScale(d.LATITUDE); })
+        .attr('r', 3) 
+        .style('fill', '#69b3a2');
+};
