@@ -31,20 +31,46 @@ const tooltip = d3.select("body").append("div")
     .style("opacity", 0);
 
 
+let globdata;
+let globgeodata;
+
 d3.csv("cleaned_crash_data_zipc.csv").then(data => {
-    const boroughCounts = bouroughCount(data);
-    const timeCounts = timesCount(data);
-    const bubbleCounts = factorsCount(data);
-    const vehicleCounts = vehiclesCount(data);
+    globdata = data
+    const boroughCounts = bouroughCount(globdata);
+    const timeCounts = timesCount(globdata);
+    const bubbleCounts = factorsCount(globdata);
+    const vehicleCounts = vehiclesCount(globdata);
 
     drawTimesChart(timeCounts, dimensions);
     drawFactorsChart(bubbleCounts, dimensions, colorScale);
     drawVehiclesChart(vehicleCounts, dimensions, colorScale);
 
     d3.json("Borough_Boundaries.geojson").then(geoData => {
+        globgeodata = geoData
         drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale);
     });
 
+});
+
+function filterDataByBorough(borough) {
+    const filteredData = globdata.filter(row => row["BOROUGH"] === borough);
+    const boroughCounts = bouroughCount(filteredData);
+    const timeCounts = timesCount(filteredData);
+    const bubbleCounts = factorsCount(filteredData);
+    const vehicleCounts = vehiclesCount(filteredData);
+
+    drawBoroughsChart(boroughCounts, globgeodata, dimensions, colorScale);
+    drawTimesChart(timeCounts, dimensions);
+    drawFactorsChart(bubbleCounts, dimensions, colorScale);
+    drawVehiclesChart(vehicleCounts, dimensions, colorScale);
+}
+
+document.getElementById("Brooklyn").addEventListener("click", function() {
+    filterDataByBorough("Brooklyn");
+});
+
+document.getElementById("Queens").addEventListener("click", function() {
+    filterDataByBorough("Queens");
 });
 
 function bouroughCount(data) {
@@ -144,10 +170,11 @@ function drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale) {
     const projection = d3.geoMercator().fitSize([dimensions.svgWidth, dimensions.svgHeight], geoData);
     const path = d3.geoPath().projection(projection);
 
-    svg.selectAll("path")
-        .data(geoData.features)
-        .enter()
-        .append("path")
+    const paths = svg.selectAll("path")
+        .data(geoData.features);
+
+    paths.enter().append("path")
+        .merge(paths)
         .attr("d", path)
         .attr("fill", d => {
             const count = boroughCounts[d.properties.boro_name];
@@ -171,10 +198,14 @@ function drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale) {
         .on('click', (event, d) => {
             alert("Borough name: " + d.properties.boro_name);
         });
+
+    paths.exit().remove();
 }
 
-function drawTimesChart(timeCounts, dimensions) {
 
+function drawTimesChart(timeCounts, dimensions) {
+    d3.select("#times").selectAll("*").remove();
+    
     const svg = d3.select("#times")
         .attr("width", dimensions.svgWidth)
         .attr("height", dimensions.svgHeight);
@@ -196,58 +227,48 @@ function drawTimesChart(timeCounts, dimensions) {
     const xAxis = d3.axisBottom(xScale).tickFormat(d => `${d}:00`);
     const yAxis = d3.axisLeft(yScale);
 
-    const chart = svg.append("g")
+    const chartGroup = svg.selectAll(".chartGroup")
+        .data([0])
+        .join("g")
+        .attr("class", "chartGroup")
         .attr("transform", `translate(${dimensions.margin.left},${dimensions.margin.top})`);
 
-    chart.append("g")
+    chartGroup.append("g")
         .attr("class", "x-axis")
         .attr("transform", `translate(0, ${chartHeight})`)
         .call(xAxis);
 
-    chart.append("g")
+    chartGroup.append("g")
         .attr("class", "y-axis")
         .call(yAxis);
-
-    const drawLine = (timeCounts, color, attributeName) => {
-        const line = d3.line()
-            .x(d => xScale(d[0]))
-            .y(d => yScale(d[1]));
-
-        chart.append("path")
-            .datum(timeCounts)
-            .attr("fill", "none")
-            .attr("stroke", color)
-            .attr("stroke-width", 2)
-            .attr("d", line)
-            .append("title")
-            .text(attributeName);
-    };
 
     attributes.forEach((attr, index) => {
         const timeData = Object.entries(timeCounts[attr]).map(d => [parseInt(d[0]), d[1]]);
         const color = d3.schemeCategory10[index % 10];
-        drawLine(timeData, color, attr);
+        const line = d3.line()
+            .x(d => xScale(d[0]))
+            .y(d => yScale(d[1]));
+
+        const pathClass = "linePath-" + attr;
+
+        const path = chartGroup.selectAll("." + pathClass)
+            .data([timeData]);
+
+        path.enter()
+            .append("path")
+            .attr("class", pathClass)
+            .merge(path)
+            .transition()
+            .duration(1000)
+            .attr("fill", "none")
+            .attr("stroke", color)
+            .attr("stroke-width", 2)
+            .attr("d", line);
+
+        path.exit().remove();
     });
+}
 
-    svg.append("text")
-        .attr("x", dimensions.svgWidth / 2)
-        .attr("y", dimensions.svgHeight - 20)
-        .style("text-anchor", "middle")
-        .text("Hour of the Day")
-        .append("text")
-        .attr("transform", "rotate(-90)")
-        .attr("x", -dimensions.svgHeight / 2)
-        .attr("y", 60)
-        .style("text-anchor", "middle")
-        .text("Number of Incidents")
-        .append("text")
-        .attr("x", dimensions.svgWidth / 2)
-        .attr("y", dimensions.margin.top / 2)
-        .style("text-anchor", "middle")
-        .style("font-size", "24px")
-        .text("Traffic Incidents by Hour and Type");
-
-};
 
 function drawFactorsChart(factorCounts, dimensions, colorScale) {
 
@@ -325,16 +346,21 @@ function drawFactorsChart(factorCounts, dimensions, colorScale) {
 };
 
 function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
+    // Clear existing content
+    d3.select('#barchart').selectAll("*").remove();
+
     const margin = { top: 20, right: 20, bottom: 30, left: 150 };
     const width = dimensions.svgWidth - margin.left - margin.right;
     const height = dimensions.svgHeight - margin.top - margin.bottom;
 
+    // Create main SVG container
     const svg = d3.select('#barchart')
         .attr("width", dimensions.svgWidth)
         .attr("height", dimensions.svgHeight)
         .append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
+    // Create scales
     let yScale = d3.scaleBand()
         .domain(filteredVehicles.map(d => d.type))
         .rangeRound([0, height])
@@ -344,16 +370,16 @@ function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
         .domain([0, d3.max(filteredVehicles, d => d.count)])
         .range([0, width]);
 
+    // Add bars
     svg.selectAll(".bar")
         .data(filteredVehicles)
         .enter().append("rect")
-        .attr("class", "bar")
+        .attr("class", "bar hover-border")
         .attr("y", d => yScale(d.type))
         .attr("x", 0)
         .attr("height", yScale.bandwidth())
         .attr("width", d => xScale(d.count))
         .attr("fill", d => colorScale(d.count))
-        .attr("class", "hover-border")
         .on('mouseover', (event, d) => {
             tooltip.transition()
                 .duration(200)
@@ -371,13 +397,16 @@ function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
             alert("Vehicle name: " + d.type);
         });
 
+    // Add Y axis
     svg.append("g")
         .call(d3.axisLeft(yScale));
 
+    // Add X axis
     svg.append("g")
         .attr("transform", `translate(0,${height})`)
         .call(d3.axisBottom(xScale));
 };
+
 
 // d3.csv("cleaned_crash_data_zipc.csv").then(data => {
 
