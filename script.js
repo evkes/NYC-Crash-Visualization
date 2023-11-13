@@ -36,43 +36,30 @@ let globgeodata;
 
 d3.csv("cleaned_crash_data_zipc.csv").then(data => {
     globdata = data
-    const boroughCounts = bouroughCount(globdata);
-    const timeCounts = timesCount(globdata);
-    const bubbleCounts = factorsCount(globdata);
-    const vehicleCounts = vehiclesCount(globdata);
-
-    drawTimesChart(timeCounts, dimensions);
-    drawFactorsChart(bubbleCounts, dimensions, colorScale);
-    drawVehiclesChart(vehicleCounts, dimensions, colorScale);
-    drawIndividChart(globdata, dimensions);
-
     d3.json("Borough_Boundaries.geojson").then(geoData => {
         globgeodata = geoData
-        drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale);
+        updateVisualization(data)
     });
-
 });
+
+function updateVisualization(data) {
+    drawBoroughsChart(bouroughCount(data), globgeodata, dimensions, colorScale);
+    drawTimesChart(timesCount(data), dimensions);
+    drawFactorsChart(factorsCount(data), dimensions, colorScale);
+    drawVehiclesChart(vehiclesCount(data), dimensions, colorScale);
+    // drawIndividChart(data, dimensions);
+}
 
 function filterDataByBorough(borough) {
     const filteredData = globdata.filter(row => row["BOROUGH"] === borough);
-
-    drawBoroughsChart(bouroughCount(filteredData), globgeodata, dimensions, colorScale);
-    drawTimesChart(timesCount(filteredData), dimensions);
-    drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
-    drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
-    drawIndividChart(filteredData, dimensions);
+    updateVisualization(filteredData);
 }
 
 function filterDataByAttribute(attribute) {
     const filteredData = globdata.filter(row => 
         row["CONTRIBUTING FACTOR VEHICLE 1"] === attribute || row["CONTRIBUTING FACTOR VEHICLE 2"] === attribute
     );
-    
-    drawBoroughsChart(bouroughCount(filteredData), globgeodata, dimensions, colorScale);
-    drawTimesChart(timesCount(filteredData), dimensions);
-    drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
-    drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
-    drawIndividChart(filteredData, dimensions);
+    updateVisualization(filteredData);
 }
 
 function filterDataByTime(time) {
@@ -80,24 +67,14 @@ function filterDataByTime(time) {
         const crashTime = parseInt(row["CRASH TIME"].split(":")[0]);
         return crashTime === time;
     });
-
-    drawBoroughsChart(bouroughCount(filteredData), globgeodata, dimensions, colorScale);
-    drawTimesChart(timesCount(filteredData), dimensions);
-    drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
-    drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
-    drawIndividChart(filteredData, dimensions);
+    updateVisualization(filteredData);
 }
-
 
 function filterDataByVehicle(vehicle) {
     const filteredData = globdata.filter(row => 
         row["VEHICLE TYPE CODE 1"] === vehicle || row["VEHICLE TYPE CODE 2"] === vehicle
     );
-
-    drawBoroughsChart(bouroughCount(filteredData), globgeodata, dimensions, colorScale);
-    drawTimesChart(timesCount(filteredData), dimensions);
-    drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
-    drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
+    updateVisualization(filteredData);
 }
 
 
@@ -199,6 +176,8 @@ function vehiclesCount(data) {
 }
 
 function drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale) {
+    d3.select('#boroughs').selectAll("*").remove();
+
     const svg = d3.select("#boroughs")
         .attr("width", dimensions.svgWidth)
         .attr("height", dimensions.svgHeight);
@@ -207,7 +186,7 @@ function drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale) {
     const path = d3.geoPath().projection(projection);
 
     const paths = svg.selectAll("path")
-        .data(geoData.features);
+        .data(globgeodata.features);
 
     paths.enter().append("path")
         .merge(paths)
@@ -395,7 +374,6 @@ function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
         .append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Create scales
     let yScale = d3.scaleBand()
         .domain(filteredVehicles.map(d => d.type))
         .rangeRound([0, height])
@@ -405,7 +383,6 @@ function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
         .domain([0, d3.max(filteredVehicles, d => d.count)])
         .range([0, width]);
 
-    // Add bars
     svg.selectAll(".bar")
         .data(filteredVehicles)
         .enter().append("rect")
@@ -432,11 +409,9 @@ function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
             filterDataByVehicle(d.type)
         });
 
-    // Add Y axis
     svg.append("g")
         .call(d3.axisLeft(yScale));
 
-    // Add X axis
     svg.append("g")
         .attr("transform", `translate(0,${height})`)
         .call(d3.axisBottom(xScale));
@@ -445,11 +420,11 @@ function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
 
 function drawIndividChart(indivdata, dimensions) {
 
-    d3.select('#funny').selectAll("*").remove();
+    d3.select('#boroughs').selectAll("*").remove();
 
     var padding = { top: 20, right: 40, bottom: 30, left: 50 };
 
-    var svg = d3.select('#funny') 
+    var svg = d3.select('#boroughs') 
         .attr("width", dimensions.svgWidth)
         .attr("height", dimensions.svgHeight)
 
@@ -479,3 +454,24 @@ function drawIndividChart(indivdata, dimensions) {
         .attr('r', 3) 
         .style('fill', '#69b3a2');
 };
+
+let isCombinedVisualization = true;
+
+function toggleVisualization() {
+    isCombinedVisualization = !isCombinedVisualization;
+
+    const button = document.getElementById("toggleButton");
+    const buttonText = document.querySelector(".button-text");
+    
+    if (isCombinedVisualization) {
+        button.classList.add("active");
+        buttonText.textContent = "Show Individual Visualization";
+        drawBoroughsChart(bouroughCount(globdata), globgeodata, dimensions, colorScale);
+    } else {
+        button.classList.remove("active");
+        buttonText.textContent = "Show Boroughs Visualization";
+        drawIndividChart(globdata, dimensions); 
+    }
+}
+
+document.getElementById("toggleButton").addEventListener("click", toggleVisualization);
