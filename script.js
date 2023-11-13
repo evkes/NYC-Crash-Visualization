@@ -65,14 +65,6 @@ function filterDataByBorough(borough) {
     drawVehiclesChart(vehicleCounts, dimensions, colorScale);
 }
 
-document.getElementById("Brooklyn").addEventListener("click", function() {
-    filterDataByBorough("Brooklyn");
-});
-
-document.getElementById("Queens").addEventListener("click", function() {
-    filterDataByBorough("Queens");
-});
-
 function bouroughCount(data) {
     let boroughCounts = {};
 
@@ -196,7 +188,7 @@ function drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale) {
                 .style("opacity", 0);
         })
         .on('click', (event, d) => {
-            alert("Borough name: " + d.properties.boro_name);
+            filterDataByBorough(d.properties.boro_name);
         });
 
     paths.exit().remove();
