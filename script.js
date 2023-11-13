@@ -54,16 +54,48 @@ d3.csv("cleaned_crash_data_zipc.csv").then(data => {
 
 function filterDataByBorough(borough) {
     const filteredData = globdata.filter(row => row["BOROUGH"] === borough);
-    const boroughCounts = bouroughCount(filteredData);
-    const timeCounts = timesCount(filteredData);
-    const bubbleCounts = factorsCount(filteredData);
-    const vehicleCounts = vehiclesCount(filteredData);
 
-    drawBoroughsChart(boroughCounts, globgeodata, dimensions, colorScale);
-    drawTimesChart(timeCounts, dimensions);
-    drawFactorsChart(bubbleCounts, dimensions, colorScale);
-    drawVehiclesChart(vehicleCounts, dimensions, colorScale);
+    drawBoroughsChart(bouroughCount(filteredData), globgeodata, dimensions, colorScale);
+    drawTimesChart(timesCount(filteredData), dimensions);
+    drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
+    drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
 }
+
+function filterDataByAttribute(attribute) {
+    const filteredData = globdata.filter(row => 
+        row["CONTRIBUTING FACTOR VEHICLE 1"] === attribute || row["CONTRIBUTING FACTOR VEHICLE 2"] === attribute
+    );
+    
+    drawBoroughsChart(bouroughCount(filteredData), globgeodata, dimensions, colorScale);
+    drawTimesChart(timesCount(filteredData), dimensions);
+    drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
+    drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
+}
+
+function filterDataByTime(time) {
+    const filteredData = globdata.filter(row => {
+        const crashTime = parseInt(row["CRASH TIME"].split(":")[0]);
+        return crashTime === time;
+    });
+
+    drawBoroughsChart(bouroughCount(filteredData), globgeodata, dimensions, colorScale);
+    drawTimesChart(timesCount(filteredData), dimensions);
+    drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
+    drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
+}
+
+
+function filterDataByVehicle(vehicle) {
+    const filteredData = globdata.filter(row => 
+        row["VEHICLE TYPE CODE 1"] === vehicle || row["VEHICLE TYPE CODE 2"] === vehicle
+    );
+
+    drawBoroughsChart(bouroughCount(filteredData), globgeodata, dimensions, colorScale);
+    drawTimesChart(timesCount(filteredData), dimensions);
+    drawFactorsChart(factorsCount(filteredData), dimensions, colorScale);
+    drawVehiclesChart(vehiclesCount(filteredData), dimensions, colorScale);
+}
+
 
 function bouroughCount(data) {
     let boroughCounts = {};
@@ -108,11 +140,19 @@ function factorsCount(data) {
 
     data.forEach(row => {
         let factor = row["CONTRIBUTING FACTOR VEHICLE 1"];
+        let factor2 = row["CONTRIBUTING FACTOR VEHICLE 2"];
         if (factor != "none") {
             if (factorCounts[factor]) {
                 factorCounts[factor]++;
             } else {
                 factorCounts[factor] = 1;
+            }
+        }
+        if (factor2 != "none") {
+            if (factorCounts[factor2]) {
+                factorCounts[factor2]++;
+            } else {
+                factorCounts[factor2] = 1;
             }
         }
     });
@@ -255,14 +295,15 @@ function drawTimesChart(timeCounts, dimensions) {
             .attr("fill", "none")
             .attr("stroke", color)
             .attr("stroke-width", 2)
-            .attr("d", line);
+            .attr("d", line)
 
         path.exit().remove();
     });
 }
 
-
 function drawFactorsChart(factorCounts, dimensions, colorScale) {
+
+    d3.select("#bubbles").selectAll("*").remove();
 
     const svg = d3.select('#bubbles')
         .attr('width', dimensions.svgWidth)
@@ -306,7 +347,7 @@ function drawFactorsChart(factorCounts, dimensions, colorScale) {
                     .style("opacity", 0);
             })
             .on('click', (event, d) => {
-                alert("Factor name: " + d.factor);
+                filterDataByAttribute(d.factor)
             });
 
         bubbles.enter().append("circle")
@@ -338,14 +379,12 @@ function drawFactorsChart(factorCounts, dimensions, colorScale) {
 };
 
 function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
-    // Clear existing content
     d3.select('#barchart').selectAll("*").remove();
 
     const margin = { top: 20, right: 20, bottom: 30, left: 150 };
     const width = dimensions.svgWidth - margin.left - margin.right;
     const height = dimensions.svgHeight - margin.top - margin.bottom;
 
-    // Create main SVG container
     const svg = d3.select('#barchart')
         .attr("width", dimensions.svgWidth)
         .attr("height", dimensions.svgHeight)
@@ -386,7 +425,7 @@ function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
                 .style("opacity", 0);
         })
         .on('click', (event, d) => {
-            alert("Vehicle name: " + d.type);
+            filterDataByVehicle(d.type)
         });
 
     // Add Y axis
