@@ -38,7 +38,7 @@ d3.csv("cleaned_crash_data_zipc.csv").then(data => {
     globdata = data
     d3.json("Borough_Boundaries.geojson").then(geoData => {
         globgeodata = geoData
-        updateVisualization(data)
+        updateVisualization(globdata)
     });
 });
 
@@ -51,30 +51,30 @@ function updateVisualization(data) {
 }
 
 function filterDataByBorough(borough) {
-    const filteredData = globdata.filter(row => row["BOROUGH"] === borough);
-    updateVisualization(filteredData);
+    globdata = globdata.filter(row => row["BOROUGH"] === borough);
+    updateVisualization(globdata);
 }
 
 function filterDataByAttribute(attribute) {
-    const filteredData = globdata.filter(row => 
+    globdata = globdata.filter(row => 
         row["CONTRIBUTING FACTOR VEHICLE 1"] === attribute || row["CONTRIBUTING FACTOR VEHICLE 2"] === attribute
     );
-    updateVisualization(filteredData);
+    updateVisualization(globdata);
 }
 
 function filterDataByTime(time) {
-    const filteredData = globdata.filter(row => {
+    globdata = globdata.filter(row => {
         const crashTime = parseInt(row["CRASH TIME"].split(":")[0]);
         return crashTime === time;
     });
-    updateVisualization(filteredData);
+    updateVisualization(globdata);
 }
 
 function filterDataByVehicle(vehicle) {
-    const filteredData = globdata.filter(row => 
+    globdata = globdata.filter(row => 
         row["VEHICLE TYPE CODE 1"] === vehicle || row["VEHICLE TYPE CODE 2"] === vehicle
     );
-    updateVisualization(filteredData);
+    updateVisualization(globdata);
 }
 
 
@@ -282,6 +282,34 @@ function drawTimesChart(timeCounts, dimensions) {
 
         path.exit().remove();
     });
+
+    const keySize = 10;
+    const keyX = chartWidth - 150; 
+    const keyY = 20;
+    const keySpacing = 20;
+
+    const keyGroup = svg.append("g")
+        .attr("class", "keyGroup")
+        .attr("transform", `translate(${keyX},${keyY})`);
+
+    attributes.forEach((attr, index) => {
+        const color = d3.schemeCategory10[index % 10];
+
+        keyGroup.append("rect")
+            .attr("x", 0)
+            .attr("y", index * keySpacing)
+            .attr("width", keySize)
+            .attr("height", keySize)
+            .style("fill", color);
+
+        keyGroup.append("text")
+            .attr("x", keySize * 1.5)
+            .attr("y", index * keySpacing + keySize / 1.5)
+            .text(attr)
+            .style("font-size", "12px")
+            .attr("alignment-baseline","middle");
+    });
+
 }
 
 function drawFactorsChart(factorCounts, dimensions, colorScale) {
