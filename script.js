@@ -142,8 +142,8 @@ function vehiclesCount(data) {
 function drawBoroughsChart(boroughCounts, geoData, colorScale) {
 
     var dimensions = {
-        svgWidth: 600,
-        svgHeight: 600,
+        svgWidth: 500,
+        svgHeight: 500,
         margin: {
             top: 50,
             right: 50,
@@ -283,8 +283,8 @@ function drawFactorsChart(factorCounts, colorScale) {
 function drawVehiclesChart(filteredVehicles, colorScale) {
 
     var dimensions = {
-        svgWidth: 400,
-        svgHeight: 600,
+        svgWidth: 1450,
+        svgHeight: 170,
     };
 
     d3.select('#barchart').selectAll("*").remove();
@@ -299,23 +299,23 @@ function drawVehiclesChart(filteredVehicles, colorScale) {
         .append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    let yScale = d3.scaleBand()
+    let xScale = d3.scaleBand()
         .domain(filteredVehicles.map(d => d.type))
-        .rangeRound([0, height])
+        .rangeRound([0, width])
         .padding(0.1);
 
-    let xScale = d3.scaleLinear()
+    let yScale = d3.scaleLinear()
         .domain([0, d3.max(filteredVehicles, d => d.count)])
-        .range([0, width]);
+        .range([height, 0]);
 
     svg.selectAll(".bar")
         .data(filteredVehicles)
         .enter().append("rect")
         .attr("class", "bar hover-border")
-        .attr("y", d => yScale(d.type))
-        .attr("x", 0)
-        .attr("height", yScale.bandwidth())
-        .attr("width", d => xScale(d.count))
+        .attr("x", d => xScale(d.type))
+        .attr("y", d => yScale(d.count))
+        .attr("width", xScale.bandwidth())
+        .attr("height", d => height - yScale(d.count))
         .attr("fill", d => colorScale(d.count))
         .on('mouseover', (event, d) => {
             tooltip.transition()
@@ -335,19 +335,20 @@ function drawVehiclesChart(filteredVehicles, colorScale) {
         });
 
     svg.append("g")
-        .call(d3.axisLeft(yScale));
+        .call(d3.axisBottom(xScale))
+        .attr("transform", `translate(0,${height})`);
 
     svg.append("g")
-        .attr("transform", `translate(0,${height})`)
-        .call(d3.axisBottom(xScale));
+        .call(d3.axisLeft(yScale));
 };
+
 
 
 function drawIndividChart(indivdata) {
 
     var dimensions = {
-        svgWidth: 600,
-        svgHeight: 600,
+        svgWidth: 500,
+        svgHeight: 500,
         margin: {
             top: 50,
             right: 50,
