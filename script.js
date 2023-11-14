@@ -44,10 +44,8 @@ d3.csv("cleaned_crash_data_zipc.csv").then(data => {
 
 function updateVisualization(data) {
     drawBoroughsChart(bouroughCount(data), globgeodata, dimensions, colorScale);
-    drawTimesChart(timesCount(data), dimensions);
     drawFactorsChart(factorsCount(data), dimensions, colorScale);
     drawVehiclesChart(vehiclesCount(data), dimensions, colorScale);
-    // drawIndividChart(data, dimensions);
 }
 
 function filterDataByBorough(borough) {
@@ -91,29 +89,6 @@ function bouroughCount(data) {
     });
 
     return boroughCounts;
-}
-
-function timesCount(data) {
-    let timeAttributesCounts = {};
-
-    attributes.forEach(attr => {
-        timeAttributesCounts[attr] = {};
-        for (let i = 0; i < 24; i++) {
-            timeAttributesCounts[attr][i] = 0;
-        }
-    });
-
-    data.forEach(row => {
-        let time = parseInt(row["CRASH TIME"].split(":")[0]);
-        attributes.forEach(attr => {
-            let value = parseFloat(row[attr]);
-            if (!isNaN(value)) {
-                timeAttributesCounts[attr][time] += value;
-            }
-        });
-    });
-
-    return timeAttributesCounts;
 }
 
 function factorsCount(data) {
@@ -215,101 +190,6 @@ function drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale) {
         });
 
     paths.exit().remove();
-}
-
-
-function drawTimesChart(timeCounts, dimensions) {
-    d3.select("#times").selectAll("*").remove();
-    
-    const svg = d3.select("#times")
-        .attr("width", dimensions.svgWidth)
-        .attr("height", dimensions.svgHeight);
-
-    const chartWidth = dimensions.svgWidth - dimensions.margin.left - dimensions.margin.right;
-    const chartHeight = dimensions.svgHeight - dimensions.margin.top - dimensions.margin.bottom;
-
-    const xScale = d3.scaleLinear()
-        .domain([0, 23])
-        .range([0, chartWidth]);
-
-    let maxCount = Math.max(...attributes.map(attr => d3.max(Object.values(timeCounts[attr]))));
-
-    const yScale = d3.scaleLinear()
-        .domain([0, maxCount])
-        .nice()
-        .range([chartHeight, 0]);
-
-    const xAxis = d3.axisBottom(xScale).tickFormat(d => `${d}:00`);
-    const yAxis = d3.axisLeft(yScale);
-
-    const chartGroup = svg.selectAll(".chartGroup")
-        .data([0])
-        .join("g")
-        .attr("class", "chartGroup")
-        .attr("transform", `translate(${dimensions.margin.left},${dimensions.margin.top})`);
-
-    chartGroup.append("g")
-        .attr("class", "x-axis")
-        .attr("transform", `translate(0, ${chartHeight})`)
-        .call(xAxis);
-
-    chartGroup.append("g")
-        .attr("class", "y-axis")
-        .call(yAxis);
-
-    attributes.forEach((attr, index) => {
-        const timeData = Object.entries(timeCounts[attr]).map(d => [parseInt(d[0]), d[1]]);
-        const color = d3.schemeCategory10[index % 10];
-        const line = d3.line()
-            .x(d => xScale(d[0]))
-            .y(d => yScale(d[1]));
-
-        const pathClass = "linePath-" + attr;
-
-        const path = chartGroup.selectAll("." + pathClass)
-            .data([timeData]);
-
-        path.enter()
-            .append("path")
-            .attr("class", pathClass)
-            .merge(path)
-            .transition()
-            .duration(1000)
-            .attr("fill", "none")
-            .attr("stroke", color)
-            .attr("stroke-width", 2)
-            .attr("d", line)
-
-        path.exit().remove();
-    });
-
-    const keySize = 10;
-    const keyX = chartWidth - 150; 
-    const keyY = 20;
-    const keySpacing = 20;
-
-    const keyGroup = svg.append("g")
-        .attr("class", "keyGroup")
-        .attr("transform", `translate(${keyX},${keyY})`);
-
-    attributes.forEach((attr, index) => {
-        const color = d3.schemeCategory10[index % 10];
-
-        keyGroup.append("rect")
-            .attr("x", 0)
-            .attr("y", index * keySpacing)
-            .attr("width", keySize)
-            .attr("height", keySize)
-            .style("fill", color);
-
-        keyGroup.append("text")
-            .attr("x", keySize * 1.5)
-            .attr("y", index * keySpacing + keySize / 1.5)
-            .text(attr)
-            .style("font-size", "12px")
-            .attr("alignment-baseline","middle");
-    });
-
 }
 
 function drawFactorsChart(factorCounts, dimensions, colorScale) {
@@ -483,7 +363,7 @@ function drawIndividChart(indivdata, dimensions) {
         .style('fill', '#69b3a2');
 };
 
-let isCombinedVisualization = true;
+var isCombinedVisualization = true;
 
 function toggleVisualization() {
     isCombinedVisualization = !isCombinedVisualization;
