@@ -1,14 +1,3 @@
-var dimensions = {
-    svgWidth: 600,
-    svgHeight: 600,
-    margin: {
-        top: 50,
-        right: 50,
-        bottom: 50,
-        left: 100
-    }
-};
-
 const maxCount = 24000;
 
 const colorScale = d3.scaleLinear()
@@ -43,9 +32,9 @@ d3.csv("cleaned_crash_data_zipc.csv").then(data => {
 });
 
 function updateVisualization(data) {
-    drawBoroughsChart(bouroughCount(data), globgeodata, dimensions, colorScale);
-    drawFactorsChart(factorsCount(data), dimensions, colorScale);
-    drawVehiclesChart(vehiclesCount(data), dimensions, colorScale);
+    drawBoroughsChart(bouroughCount(data), globgeodata, colorScale);
+    drawFactorsChart(factorsCount(data), colorScale);
+    drawVehiclesChart(vehiclesCount(data), colorScale);
 }
 
 function filterDataByBorough(borough) {
@@ -150,7 +139,19 @@ function vehiclesCount(data) {
     return filteredVehicles;
 }
 
-function drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale) {
+function drawBoroughsChart(boroughCounts, geoData, colorScale) {
+
+    var dimensions = {
+        svgWidth: 600,
+        svgHeight: 600,
+        margin: {
+            top: 50,
+            right: 50,
+            bottom: 50,
+            left: 100
+        }
+    };
+
     d3.select('#boroughs').selectAll("*").remove();
 
     const svg = d3.select("#boroughs")
@@ -192,7 +193,17 @@ function drawBoroughsChart(boroughCounts, geoData, dimensions, colorScale) {
     paths.exit().remove();
 }
 
-function drawFactorsChart(factorCounts, dimensions, colorScale) {
+function drawFactorsChart(factorCounts, colorScale) {
+    var dimensions = {
+        svgWidth: 600,
+        svgHeight: 600,
+        margin: {
+            top: 50,
+            right: 50,
+            bottom: 50,
+            left: 100
+        }
+    };
 
     d3.select("#bubbles").selectAll("*").remove();
 
@@ -269,7 +280,13 @@ function drawFactorsChart(factorCounts, dimensions, colorScale) {
     }
 };
 
-function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
+function drawVehiclesChart(filteredVehicles, colorScale) {
+
+    var dimensions = {
+        svgWidth: 400,
+        svgHeight: 600,
+    };
+
     d3.select('#barchart').selectAll("*").remove();
 
     const margin = { top: 20, right: 20, bottom: 30, left: 150 };
@@ -326,7 +343,18 @@ function drawVehiclesChart(filteredVehicles, dimensions, colorScale) {
 };
 
 
-function drawIndividChart(indivdata, dimensions) {
+function drawIndividChart(indivdata) {
+
+    var dimensions = {
+        svgWidth: 600,
+        svgHeight: 600,
+        margin: {
+            top: 50,
+            right: 50,
+            bottom: 50,
+            left: 100
+        }
+    };
 
     d3.select('#boroughs').selectAll("*").remove();
 
@@ -374,11 +402,11 @@ function toggleVisualization() {
     if (isCombinedVisualization) {
         button.classList.add("active");
         buttonText.textContent = "Show Individual Visualization";
-        drawBoroughsChart(bouroughCount(globdata), globgeodata, dimensions, colorScale);
+        drawBoroughsChart(bouroughCount(globdata), globgeodata, colorScale);
     } else {
         button.classList.remove("active");
         buttonText.textContent = "Show Boroughs Visualization";
-        drawIndividChart(globdata, dimensions); 
+        drawIndividChart(globdata); 
     }
 }
 
