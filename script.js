@@ -145,10 +145,10 @@ function drawBoroughsChart(boroughCounts, geoData, colorScale) {
         svgWidth: 500,
         svgHeight: 500,
         margin: {
-            top: 50,
-            right: 50,
-            bottom: 50,
-            left: 100
+            top: 20,
+            right: 20,
+            bottom: 40,
+            left: 40
         }
     };
 
