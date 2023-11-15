@@ -22,6 +22,7 @@ const tooltip = d3.select("body").append("div")
 
 let globdata;
 let globgeodata;
+let vehicleColorScale;
 
 d3.csv("cleaned_crash_data_zipc.csv").then(data => {
     globdata = data
@@ -33,8 +34,13 @@ d3.csv("cleaned_crash_data_zipc.csv").then(data => {
 
 function updateVisualization(data) {
     drawBoroughsChart(bouroughCount(data), globgeodata, colorScale);
-    drawFactorsChart(factorsCount(data), colorScale);
-    drawVehiclesChart(vehiclesCount(data), colorScale);
+
+    let filteredVehicles = vehiclesCount(data);
+    let vehicleColorScale = getVehicleColorScale(filteredVehicles);
+    
+    drawFactorsChart(factorsCount(data), vehicleColorScale);  // Pass the color scale to drawFactorsChart
+    drawVehiclesChart(filteredVehicles, vehicleColorScale);
+    
 }
 
 function filterDataByBorough(borough) {
@@ -128,6 +134,7 @@ function vehiclesCount(data) {
         }
     });
 
+    
     let filteredVehicles = Object.entries(vehicleCounts)
         .map(([type, count]) => ({
             type,
@@ -137,6 +144,14 @@ function vehiclesCount(data) {
     filteredVehicles.sort((a, b) => b.count - a.count);
 
     return filteredVehicles;
+}
+
+function getVehicleColorScale(filteredVehicles) {
+    const colorScale = d3.scaleOrdinal()
+        .domain(filteredVehicles.map(d => d.type))
+        .range(d3.schemeCategory10);
+
+    return colorScale;
 }
 
 function drawBoroughsChart(boroughCounts, geoData, colorScale) {
@@ -193,7 +208,7 @@ function drawBoroughsChart(boroughCounts, geoData, colorScale) {
     paths.exit().remove();
 }
 
-function drawFactorsChart(factorCounts, colorScale) {
+function drawFactorsChart(factorCounts, vehicleColorScale) {
     var dimensions = {
         svgWidth: 600,
         svgHeight: 600,
@@ -254,7 +269,7 @@ function drawFactorsChart(factorCounts, colorScale) {
 
         bubbles.enter().append("circle")
             .attr("r", d => radiusScale(d.count))
-            .attr("fill", d => colorScale(d.count))
+            .attr("fill", "lightgrey")
             .merge(bubbles)
             .attr("cx", d => d.x)
             .attr("cy", d => d.y);
@@ -280,7 +295,7 @@ function drawFactorsChart(factorCounts, colorScale) {
     }
 };
 
-function drawVehiclesChart(filteredVehicles, colorScale) {
+function drawVehiclesChart(filteredVehicles, vehicleColorScale) {
 
     var dimensions = {
         svgWidth: 1450,
@@ -317,7 +332,7 @@ function drawVehiclesChart(filteredVehicles, colorScale) {
         .attr("y", d => yScale(d.count))
         .attr("width", xScale.bandwidth())
         .attr("height", d => dimensions.height - yScale(d.count))
-        .attr("fill", d => colorScale(d.count))
+        .attr("fill", d => vehicleColorScale(d.type))
         .on('mouseover', (event, d) => {
             tooltip.transition()
                 .duration(200)
