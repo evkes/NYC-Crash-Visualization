@@ -24,9 +24,30 @@ const tooltip = d3.select("body").append("div")
 
 let globdata;
 let globgeodata;
-let vehicleColorScale;
 
 let selectedVehicles = [];
+
+const allVehicleTypes = [
+    "Sedan", "Station wagon", "Sport utility vehicle / Mini van", "Bike",
+    "E-bike/E-scooter", "Box truck", "Bus", "Pick-up truck", "Taxi",
+    "Motorcycle", "Ambulance"
+]
+
+const vehicleColorScale = {
+    "Sedan": "#1f77b4",
+    "Station wagon": "#ff7f0e",
+    "Sport utility vehicle / Mini van": "#2ca02c",
+    "Bike": "#d62728",
+    "E-bike/E-scooter": "#9467bd",
+    "Box truck": "#8c564b",
+    "Bus": "#e377c2",
+    "Pick-up truck": "#7f7f7f",
+    "Taxi": "#bcbd22",
+    "Motorcycle": "#17becf",
+    "Ambulance": "#9edae5"
+};
+
+
 
 d3.csv("cleaned_crash_data_zipc.csv").then(data => {
     globdata = data
@@ -40,10 +61,9 @@ function updateVisualization(data) {
     drawBoroughsChart(bouroughCount(data), globgeodata, colorScale);
 
     let filteredVehicles = vehiclesCount(data);
-    let vehicleColorScale = getVehicleColorScale(filteredVehicles);
 
-    drawFactorsChart(factorsCount(data), vehicleColorScale);
-    drawVehiclesChart(filteredVehicles, vehicleColorScale);
+    drawFactorsChart(factorsCount(data));
+    drawVehiclesChart(filteredVehicles);
 
 }
 
@@ -117,11 +137,7 @@ function factorsCount(data) {
 
 function vehiclesCount(data) {
     let vehicleCounts = {};
-    allVehicleTypes = [
-        "Sedan", "Station wagon", "Sport utility vehicle / Mini van", "Bike",
-        "E-bike/E-scooter", "Box truck", "Bus", "Pick-up truck", "Taxi",
-        "Motorcycle", "Ambulance"
-    ]
+    
     allVehicleTypes.forEach(type => vehicleCounts[type] = 0);
 
     data.forEach(row => {
@@ -143,14 +159,6 @@ function vehiclesCount(data) {
     filteredVehicles.sort((a, b) => b.count - a.count);
 
     return filteredVehicles;
-}
-
-function getVehicleColorScale(filteredVehicles) {
-    const colorScale = d3.scaleOrdinal()
-        .domain(filteredVehicles.map(d => d.type))
-        .range(d3.schemeCategory10);
-
-    return colorScale;
 }
 
 function drawBoroughsChart(boroughCounts, geoData, colorScale) {
@@ -294,7 +302,7 @@ function drawFactorsChart(factorCounts) {
     }
 };
 
-function drawVehiclesChart(filteredVehicles, vehicleColorScale) {
+function drawVehiclesChart(filteredVehicles) {
 
     var dimensions = {
         svgWidth: 1450,
@@ -331,7 +339,7 @@ function drawVehiclesChart(filteredVehicles, vehicleColorScale) {
         .attr("y", d => yScale(d.count))
         .attr("width", xScale.bandwidth())
         .attr("height", d => dimensions.height - yScale(d.count))
-        .attr("fill", d => vehicleColorScale(d.type))
+        .attr("fill", d => vehicleColorScale[d.type])
         .on('mouseover', (event, d) => {
             tooltip.transition()
                 .duration(200)
@@ -349,7 +357,7 @@ function drawVehiclesChart(filteredVehicles, vehicleColorScale) {
             filterDataByVehicle(d.type)
             selectedVehicles.push(d.type);
             if (selectedVehicles.length == 2) {
-                drawPieCharts(selectedVehicles, vehicleColorScale);
+                drawPieCharts(selectedVehicles);
                 // selectedVehicles = []; 
             }
         });
@@ -410,7 +418,7 @@ function drawIndividChart(indivdata) {
         .style('fill', '#69b3a2');
 };
 
-function drawPieCharts(selectedVehicles, vehicleColorScale) {
+function drawPieCharts(selectedVehicles) {
     const fs = factorsCount(globdata);
     let pieChartData = {};
 
@@ -509,10 +517,10 @@ function drawPieCharts(selectedVehicles, vehicleColorScale) {
 
                 piePaths.enter().append("path")
                     .attr("d", arc)
-                    .attr("fill", d => vehicleColorScale(d.data.key));
+                    .attr("fill", d => vehicleColorScale[d.data.key]);
 
                 piePaths.attr("d", arc) 
-                    .attr("fill", d => vehicleColorScale(d.data.key));
+                    .attr("fill", d => vehicleColorScale[d.data.key]);
             });
 
         bubbleGroups.exit().remove();
