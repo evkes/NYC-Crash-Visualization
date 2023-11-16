@@ -4,6 +4,8 @@ const colorScale = d3.scaleLinear()
     .domain([0, maxCount])
     .range(["#E0F8FF", "#000080"]);
 
+let labelThreshold = maxCount;
+
 const attributes = [
     "NUMBER OF PERSONS INJURED",
     "NUMBER OF PERSONS KILLED",
@@ -39,10 +41,10 @@ function updateVisualization(data) {
 
     let filteredVehicles = vehiclesCount(data);
     let vehicleColorScale = getVehicleColorScale(filteredVehicles);
-    
+
     drawFactorsChart(factorsCount(data), vehicleColorScale);
     drawVehiclesChart(filteredVehicles, vehicleColorScale);
-    
+
 }
 
 function filterDataByBorough(borough) {
@@ -51,7 +53,7 @@ function filterDataByBorough(borough) {
 }
 
 function filterDataByAttribute(attribute) {
-    globdata = globdata.filter(row => 
+    globdata = globdata.filter(row =>
         row["CONTRIBUTING FACTOR VEHICLE 1"] === attribute || row["CONTRIBUTING FACTOR VEHICLE 2"] === attribute
     );
     updateVisualization(globdata);
@@ -66,7 +68,7 @@ function filterDataByTime(time) {
 }
 
 function filterDataByVehicle(vehicle) {
-    globdata = globdata.filter(row => 
+    globdata = globdata.filter(row =>
         row["VEHICLE TYPE CODE 1"] === vehicle || row["VEHICLE TYPE CODE 2"] === vehicle
     );
     updateVisualization(globdata);
@@ -117,7 +119,7 @@ function vehiclesCount(data) {
     let vehicleCounts = {};
     allVehicleTypes = [
         "Sedan", "Station wagon", "Sport utility vehicle / Mini van", "Bike",
-        "E-bike/E-scooter", "Box truck", "Bus", "Pick-up truck", "Taxi", 
+        "E-bike/E-scooter", "Box truck", "Bus", "Pick-up truck", "Taxi",
         "Motorcycle", "Ambulance"
     ]
     allVehicleTypes.forEach(type => vehicleCounts[type] = 0);
@@ -125,7 +127,7 @@ function vehiclesCount(data) {
     data.forEach(row => {
         let type1 = row["VEHICLE TYPE CODE 1"];
         let type2 = row["VEHICLE TYPE CODE 2"];
-        
+
         if (type1 && vehicleCounts.hasOwnProperty(type1)) {
             vehicleCounts[type1]++;
         }
@@ -234,7 +236,7 @@ function drawFactorsChart(factorCounts) {
         .domain([0, maxCount])
         .range([10, 100]);
 
-    const labelThreshold = maxCount * 0.05;
+    labelThreshold = maxCount * 0.05;
 
     let simulation = d3.forceSimulation(factors)
         .force("charge", d3.forceManyBody().strength(15))
@@ -377,7 +379,7 @@ function drawIndividChart(indivdata) {
 
     d3.select('#boroughs').selectAll("*").remove();
 
-    var svg = d3.select('#boroughs') 
+    var svg = d3.select('#boroughs')
         .attr("width", dimensions.svgWidth)
         .attr("height", dimensions.svgHeight)
 
@@ -404,7 +406,7 @@ function drawIndividChart(indivdata) {
         .append('circle')
         .attr('cx', function (d) { return xScale(d.LONGITUDE); })
         .attr('cy', function (d) { return yScale(d.LATITUDE); })
-        .attr('r', 3) 
+        .attr('r', 3)
         .style('fill', '#69b3a2');
 };
 
@@ -434,23 +436,21 @@ function drawPieCharts(selectedVehicles, vehicleColorScale) {
     Object.keys(pieChartData).forEach(factor => {
         let vehicle1Count = pieChartData[factor][selectedVehicles[0]];
         let vehicle2Count = pieChartData[factor][selectedVehicles[1]];
-    
-        // Calculate the normalized values
+
         let total = vehicle1Count + vehicle2Count;
         let vehicle1Norm = total > 0 ? vehicle1Count / total : 0;
         let vehicle2Norm = total > 0 ? vehicle2Count / total : 0;
-    
-        // Add the normalized values back to the pieChartData
+
         pieChartData[factor][selectedVehicles[0] + "_norm"] = vehicle1Norm;
         pieChartData[factor][selectedVehicles[1] + "_norm"] = vehicle2Norm;
     });
-    
+
     console.log(pieChartData);
 
     const factors = Object.keys(fs).map(key => ({
         factor: key,
         count: fs[key],
-        pieData: pieChartData[key] 
+        pieData: pieChartData[key]
     }));
 
     let maxCount = d3.max(factors, d => d.count);
@@ -487,25 +487,37 @@ function drawPieCharts(selectedVehicles, vehicleColorScale) {
         .on("tick", ticked);
 
     function ticked() {
-        let bubbles = svg.selectAll("g.bubble")
-            .data(factors, d => d.factor)
-            .enter().append("g")
-            .attr("class", "bubble")
-            .attr("transform", d => `translate(${d.x}, ${d.y})`);
+        let bubbleGroups = svg.selectAll("g.bubble")
+        .data(factors, d => d.factor);
 
-        bubbles.each(function(d) {
-            let g = d3.select(this);
-            let radius = radiusScale(d.count);
-            arc.outerRadius(radius);
-            
-            let pieData = pie(Object.entries(d.pieData).map(entry => ({ key: entry[0], value: entry[1] })));
-            g.selectAll("path")
-                .data(pieData)
-                .enter().append("path")
-                .attr("d", arc)
-                .attr("fill", d => vehicleColorScale(d.data.key)); 
-    });
-}};
+        let newBubbleGroups = bubbleGroups.enter().append("g")
+            .attr("class", "bubble");
+
+        newBubbleGroups.append("circle")
+            .attr("r", d => radiusScale(d.count))
+            .attr("class", "hover-border");
+
+        bubbleGroups.merge(newBubbleGroups)
+            .attr("transform", d => `translate(${d.x}, ${d.y})`)
+            .each(function(d) {
+                let g = d3.select(this);
+                let radius = radiusScale(d.count);
+                arc.outerRadius(radius);
+
+                let pieData = pie(Object.entries(d.pieData).map(entry => ({ key: entry[0], value: entry[1] })));
+                let piePaths = g.selectAll("path").data(pieData);
+
+                piePaths.enter().append("path")
+                    .attr("d", arc)
+                    .attr("fill", d => vehicleColorScale(d.data.key));
+
+                piePaths.attr("d", arc) 
+                    .attr("fill", d => vehicleColorScale(d.data.key));
+            });
+
+        bubbleGroups.exit().remove();
+    }
+};
 
 
 
@@ -516,7 +528,7 @@ function toggleVisualization() {
 
     const button = document.getElementById("toggleButton");
     const buttonText = document.querySelector(".button-text");
-    
+
     if (isCombinedVisualization) {
         button.classList.add("active");
         buttonText.textContent = "Show Individual Visualization";
@@ -524,7 +536,7 @@ function toggleVisualization() {
     } else {
         button.classList.remove("active");
         buttonText.textContent = "Show Boroughs Visualization";
-        drawIndividChart(globdata); 
+        drawIndividChart(globdata);
     }
 }
 
