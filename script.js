@@ -24,6 +24,8 @@ let globdata;
 let globgeodata;
 let vehicleColorScale;
 
+let selectedVehicles = [];
+
 d3.csv("cleaned_crash_data_zipc.csv").then(data => {
     globdata = data
     d3.json("Borough_Boundaries.geojson").then(geoData => {
@@ -38,7 +40,7 @@ function updateVisualization(data) {
     let filteredVehicles = vehiclesCount(data);
     let vehicleColorScale = getVehicleColorScale(filteredVehicles);
     
-    drawFactorsChart(factorsCount(data), vehicleColorScale);  // Pass the color scale to drawFactorsChart
+    drawFactorsChart(factorsCount(data), vehicleColorScale);
     drawVehiclesChart(filteredVehicles, vehicleColorScale);
     
 }
@@ -113,34 +115,29 @@ function factorsCount(data) {
 
 function vehiclesCount(data) {
     let vehicleCounts = {};
+    allVehicleTypes = [
+        "Sedan", "Station wagon", "Sport utility vehicle / Mini van", "Bike",
+        "E-bike/E-scooter", "Box truck", "Bus", "Pick-up truck", "Taxi", 
+        "Motorcycle", "Ambulance"
+    ]
+    allVehicleTypes.forEach(type => vehicleCounts[type] = 0);
 
     data.forEach(row => {
-        let factor = row["VEHICLE TYPE CODE 1"];
-        let factor2 = row["VEHICLE TYPE CODE 2"];
-
-        if (factor.length > 1) {
-            if (vehicleCounts[factor]) {
-                vehicleCounts[factor]++;
-            } else {
-                vehicleCounts[factor] = 1;
-            }
+        let type1 = row["VEHICLE TYPE CODE 1"];
+        let type2 = row["VEHICLE TYPE CODE 2"];
+        
+        if (type1 && vehicleCounts.hasOwnProperty(type1)) {
+            vehicleCounts[type1]++;
         }
-        if (factor2.length > 1) {
-            if (vehicleCounts[factor2]) {
-                vehicleCounts[factor2]++;
-            } else {
-                vehicleCounts[factor2] = 1;
-            }
+        if (type2 && vehicleCounts.hasOwnProperty(type2)) {
+            vehicleCounts[type2]++;
         }
     });
 
-    
     let filteredVehicles = Object.entries(vehicleCounts)
-        .map(([type, count]) => ({
-            type,
-            count
-        }));
+        .map(([type, count]) => ({ type, count }));
 
+    // Sort if necessary
     filteredVehicles.sort((a, b) => b.count - a.count);
 
     return filteredVehicles;
@@ -208,7 +205,7 @@ function drawBoroughsChart(boroughCounts, geoData, colorScale) {
     paths.exit().remove();
 }
 
-function drawFactorsChart(factorCounts, vehicleColorScale) {
+function drawFactorsChart(factorCounts) {
     var dimensions = {
         svgWidth: 600,
         svgHeight: 600,
@@ -348,6 +345,11 @@ function drawVehiclesChart(filteredVehicles, vehicleColorScale) {
         })
         .on('click', (event, d) => {
             filterDataByVehicle(d.type)
+            selectedVehicles.push(d.type);
+            if (selectedVehicles.length == 2) {
+                drawPieCharts(selectedVehicles, vehicleColorScale);
+                // selectedVehicles = []; 
+            }
         });
 
     svg.append("g")
@@ -405,6 +407,107 @@ function drawIndividChart(indivdata) {
         .attr('r', 3) 
         .style('fill', '#69b3a2');
 };
+
+function drawPieCharts(selectedVehicles, vehicleColorScale) {
+    const fs = factorsCount(globdata);
+    let pieChartData = {};
+
+    Object.keys(fs).forEach(factor => {
+        pieChartData[factor] = { [selectedVehicles[0]]: 0, [selectedVehicles[1]]: 0 };
+    });
+
+    globdata.forEach(row => {
+        let factor1 = row["CONTRIBUTING FACTOR VEHICLE 1"];
+        let factor2 = row["CONTRIBUTING FACTOR VEHICLE 2"];
+        let vehicle1 = row["VEHICLE TYPE CODE 1"];
+        let vehicle2 = row["VEHICLE TYPE CODE 2"];
+
+        if (selectedVehicles.includes(vehicle1)) {
+            if (factor1 != "none") pieChartData[factor1][vehicle1]++;
+        }
+        if (selectedVehicles.includes(vehicle2)) {
+            if (factor2 != "none") pieChartData[factor2][vehicle2]++;
+        }
+
+    });
+
+    Object.keys(pieChartData).forEach(factor => {
+        let vehicle1Count = pieChartData[factor][selectedVehicles[0]];
+        let vehicle2Count = pieChartData[factor][selectedVehicles[1]];
+    
+        // Calculate the normalized values
+        let total = vehicle1Count + vehicle2Count;
+        let vehicle1Norm = total > 0 ? vehicle1Count / total : 0;
+        let vehicle2Norm = total > 0 ? vehicle2Count / total : 0;
+    
+        // Add the normalized values back to the pieChartData
+        pieChartData[factor][selectedVehicles[0] + "_norm"] = vehicle1Norm;
+        pieChartData[factor][selectedVehicles[1] + "_norm"] = vehicle2Norm;
+    });
+    
+    console.log(pieChartData);
+
+    const factors = Object.keys(fs).map(key => ({
+        factor: key,
+        count: fs[key],
+        pieData: pieChartData[key] 
+    }));
+
+    let maxCount = d3.max(factors, d => d.count);
+    let radiusScale = d3.scaleSqrt().domain([0, maxCount]).range([10, 100]);
+
+    const pie = d3.pie()
+        .value(d => d.value)
+        .sort(null);
+
+    const arc = d3.arc()
+        .innerRadius(0);
+
+    d3.select("#bubbles").selectAll("*").remove();
+
+    var dimensions = {
+        svgWidth: 600,
+        svgHeight: 600,
+        margin: {
+            top: 50,
+            right: 50,
+            bottom: 50,
+            left: 100
+        }
+    };
+
+    const svg = d3.select('#bubbles')
+        .attr('width', dimensions.svgWidth)
+        .attr('height', dimensions.svgHeight);
+
+    let simulation = d3.forceSimulation(factors)
+        .force("charge", d3.forceManyBody().strength(15))
+        .force("center", d3.forceCenter(dimensions.svgWidth / 2, dimensions.svgHeight / 2))
+        .force("collision", d3.forceCollide().radius(d => radiusScale(d.count) + 1))
+        .on("tick", ticked);
+
+    function ticked() {
+        let bubbles = svg.selectAll("g.bubble")
+            .data(factors, d => d.factor)
+            .enter().append("g")
+            .attr("class", "bubble")
+            .attr("transform", d => `translate(${d.x}, ${d.y})`);
+
+        bubbles.each(function(d) {
+            let g = d3.select(this);
+            let radius = radiusScale(d.count);
+            arc.outerRadius(radius);
+            
+            let pieData = pie(Object.entries(d.pieData).map(entry => ({ key: entry[0], value: entry[1] })));
+            g.selectAll("path")
+                .data(pieData)
+                .enter().append("path")
+                .attr("d", arc)
+                .attr("fill", d => vehicleColorScale(d.data.key)); 
+    });
+}};
+
+
 
 var isCombinedVisualization = true;
 
