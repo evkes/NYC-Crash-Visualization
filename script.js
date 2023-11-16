@@ -79,14 +79,6 @@ function filterDataByAttribute(attribute) {
     updateVisualization(globdata);
 }
 
-function filterDataByTime(time) {
-    globdata = globdata.filter(row => {
-        const crashTime = parseInt(row["CRASH TIME"].split(":")[0]);
-        return crashTime === time;
-    });
-    updateVisualization(globdata);
-}
-
 function filterDataByVehicle(vehicle) {
     globdata = globdata.filter(row =>
         row["VEHICLE TYPE CODE 1"] === vehicle || row["VEHICLE TYPE CODE 2"] === vehicle
@@ -526,8 +518,6 @@ function drawPieCharts(selectedVehicles) {
         bubbleGroups.exit().remove();
     }
 };
-
-
 
 var isCombinedVisualization = true;
 
