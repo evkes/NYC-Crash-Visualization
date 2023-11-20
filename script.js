@@ -58,11 +58,11 @@ d3.csv("cleaned_crash_data_zipc.csv").then(data => {
 });
 
 function updateVisualization(data) {
-    drawBoroughsChart(bouroughCount(data), globgeodata, colorScale);
+    drawBoroughsChart(bouroughCount(data), colorScale);
 
     let filteredVehicles = vehiclesCount(data);
 
-    drawFactorsChart(factorsCount(data));
+    drawBubbles(factorsCount(data));
     drawVehiclesChart(filteredVehicles);
 
 }
@@ -129,7 +129,7 @@ function factorsCount(data) {
 
 function vehiclesCount(data) {
     let vehicleCounts = {};
-    
+
     allVehicleTypes.forEach(type => vehicleCounts[type] = 0);
 
     data.forEach(row => {
@@ -153,7 +153,7 @@ function vehiclesCount(data) {
     return filteredVehicles;
 }
 
-function drawBoroughsChart(boroughCounts, geoData, colorScale) {
+function drawBoroughsChart(boroughCounts, colorScale) {
 
     var dimensions = {
         svgWidth: 500,
@@ -172,7 +172,7 @@ function drawBoroughsChart(boroughCounts, geoData, colorScale) {
         .attr("width", dimensions.svgWidth)
         .attr("height", dimensions.svgHeight);
 
-    const projection = d3.geoMercator().fitSize([dimensions.svgWidth, dimensions.svgHeight], geoData);
+    const projection = d3.geoMercator().fitSize([dimensions.svgWidth, dimensions.svgHeight], globgeodata);
     const path = d3.geoPath().projection(projection);
 
     const paths = svg.selectAll("path")
@@ -207,90 +207,199 @@ function drawBoroughsChart(boroughCounts, geoData, colorScale) {
     paths.exit().remove();
 }
 
-function drawFactorsChart(factorCounts) {
-    var dimensions = {
-        svgWidth: 600,
-        svgHeight: 600,
-        margin: {
-            top: 50,
-            right: 50,
-            bottom: 50,
-            left: 100
+function drawBubbles(factorCounts) {
+    if (selectedVehicles.length < 2) {
+        var dimensions = {
+            svgWidth: 600,
+            svgHeight: 600,
+            margin: {
+                top: 50,
+                right: 50,
+                bottom: 50,
+                left: 100
+            }
+        };
+
+        d3.select("#bubbles").selectAll("*").remove();
+
+        const svg = d3.select('#bubbles')
+            .attr('width', dimensions.svgWidth)
+            .attr('height', dimensions.svgHeight);
+
+        let factors = Object.keys(factorCounts).map(key => ({
+            factor: key,
+            count: factorCounts[key]
+        }));
+
+        let maxCount = d3.max(factors, d => d.count);
+
+        let radiusScale = d3.scaleSqrt()
+            .domain([0, maxCount])
+            .range([10, 100]);
+
+        labelThreshold = maxCount * 0.05;
+
+        let simulation = d3.forceSimulation(factors)
+            .force("charge", d3.forceManyBody().strength(15))
+            .force("center", d3.forceCenter(dimensions.svgWidth / 2, dimensions.svgHeight / 2))
+            .force("collision", d3.forceCollide().radius(d => radiusScale(d.count) + 1))
+            .on("tick", ticked);
+
+        function ticked() {
+
+            let bubbles = svg.selectAll("circle")
+                .data(factors, d => d.factor)
+                .attr("class", "hover-border")
+                .on('mouseover', (event, d) => {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html("<b>" + d.factor + ":</b><br/>" + d.count + " crashes")
+                        .style("left", (event.pageX) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on('mouseout', () => {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                })
+                .on('click', (event, d) => {
+                    filterDataByAttribute(d.factor)
+                });
+
+            bubbles.enter().append("circle")
+                .attr("r", d => radiusScale(d.count))
+                .attr("fill", "lightgrey")
+                .merge(bubbles)
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+            bubbles.exit().remove();
+
+            let labels = svg.selectAll("text")
+                .data(factors.filter(d => d.count >= labelThreshold), d => d.factor);
+
+            labels.enter().append("text")
+                .text(d => d.factor)
+                .attr("x", d => d.x)
+                .attr("y", d => d.y)
+                .attr("text-anchor", "middle")
+                .attr("alignment-baseline", "middle")
+                .attr("font-size", "10px")
+                .attr("fill", "black")
+                .merge(labels)
+                .attr("x", d => d.x)
+                .attr("y", d => d.y);
+
+            labels.exit().remove();
         }
-    };
+    }
+    else {
+        let pieChartData = {};
 
-    d3.select("#bubbles").selectAll("*").remove();
+        Object.keys(factorCounts).forEach(factor => {
+            pieChartData[factor] = { [selectedVehicles[0]]: 0, [selectedVehicles[1]]: 0 };
+        });
 
-    const svg = d3.select('#bubbles')
-        .attr('width', dimensions.svgWidth)
-        .attr('height', dimensions.svgHeight);
+        globdata.forEach(row => {
+            let factor1 = row["CONTRIBUTING FACTOR VEHICLE 1"];
+            let factor2 = row["CONTRIBUTING FACTOR VEHICLE 2"];
+            let vehicle1 = row["VEHICLE TYPE CODE 1"];
+            let vehicle2 = row["VEHICLE TYPE CODE 2"];
 
-    let factors = Object.keys(factorCounts).map(key => ({
-        factor: key,
-        count: factorCounts[key]
-    }));
+            if (selectedVehicles.includes(vehicle1)) {
+                if (factor1 != "none") pieChartData[factor1][vehicle1]++;
+            }
+            if (selectedVehicles.includes(vehicle2)) {
+                if (factor2 != "none") pieChartData[factor2][vehicle2]++;
+            }
 
-    let maxCount = d3.max(factors, d => d.count);
+        });
 
-    let radiusScale = d3.scaleSqrt()
-        .domain([0, maxCount])
-        .range([10, 100]);
+        Object.keys(pieChartData).forEach(factor => {
+            let vehicle1Count = pieChartData[factor][selectedVehicles[0]];
+            let vehicle2Count = pieChartData[factor][selectedVehicles[1]];
 
-    labelThreshold = maxCount * 0.05;
+            let total = vehicle1Count + vehicle2Count;
+            let vehicle1Norm = total > 0 ? vehicle1Count / total : 0;
+            let vehicle2Norm = total > 0 ? vehicle2Count / total : 0;
 
-    let simulation = d3.forceSimulation(factors)
-        .force("charge", d3.forceManyBody().strength(15))
-        .force("center", d3.forceCenter(dimensions.svgWidth / 2, dimensions.svgHeight / 2))
-        .force("collision", d3.forceCollide().radius(d => radiusScale(d.count) + 1))
-        .on("tick", ticked);
+            pieChartData[factor][selectedVehicles[0] + "_norm"] = vehicle1Norm;
+            pieChartData[factor][selectedVehicles[1] + "_norm"] = vehicle2Norm;
+        });
 
-    function ticked() {
+        console.log(pieChartData);
 
-        let bubbles = svg.selectAll("circle")
-            .data(factors, d => d.factor)
-            .attr("class", "hover-border")
-            .on('mouseover', (event, d) => {
-                tooltip.transition()
-                    .duration(200)
-                    .style("opacity", .9);
-                tooltip.html("<b>" + d.factor + ":</b><br/>" + d.count + " crashes")
-                    .style("left", (event.pageX) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-            })
-            .on('mouseout', () => {
-                tooltip.transition()
-                    .duration(500)
-                    .style("opacity", 0);
-            })
-            .on('click', (event, d) => {
-                filterDataByAttribute(d.factor)
-            });
+        const factors = Object.keys(factorCounts).map(key => ({
+            factor: key,
+            count: factorCounts[key],
+            pieData: pieChartData[key]
+        }));
 
-        bubbles.enter().append("circle")
-            .attr("r", d => radiusScale(d.count))
-            .attr("fill", "lightgrey")
-            .merge(bubbles)
-            .attr("cx", d => d.x)
-            .attr("cy", d => d.y);
+        let maxCount = d3.max(factors, d => d.count);
+        let radiusScale = d3.scaleSqrt().domain([0, maxCount]).range([10, 100]);
 
-        bubbles.exit().remove();
+        const pie = d3.pie()
+            .value(d => d.value)
+            .sort(null);
 
-        let labels = svg.selectAll("text")
-            .data(factors.filter(d => d.count >= labelThreshold), d => d.factor);
+        const arc = d3.arc()
+            .innerRadius(0);
 
-        labels.enter().append("text")
-            .text(d => d.factor)
-            .attr("x", d => d.x)
-            .attr("y", d => d.y)
-            .attr("text-anchor", "middle")
-            .attr("alignment-baseline", "middle")
-            .attr("font-size", "10px")
-            .attr("fill", "black")
-            .merge(labels)
-            .attr("x", d => d.x)
-            .attr("y", d => d.y);
+        d3.select("#bubbles").selectAll("*").remove();
 
-        labels.exit().remove();
+        var dimensions = {
+            svgWidth: 600,
+            svgHeight: 600,
+            margin: {
+                top: 50,
+                right: 50,
+                bottom: 50,
+                left: 100
+            }
+        };
+
+        const svg = d3.select('#bubbles')
+            .attr('width', dimensions.svgWidth)
+            .attr('height', dimensions.svgHeight);
+
+        let simulation = d3.forceSimulation(factors)
+            .force("charge", d3.forceManyBody().strength(15))
+            .force("center", d3.forceCenter(dimensions.svgWidth / 2, dimensions.svgHeight / 2))
+            .force("collision", d3.forceCollide().radius(d => radiusScale(d.count) + 1))
+            .on("tick", ticked);
+
+        function ticked() {
+            let bubbleGroups = svg.selectAll("g.bubble")
+                .data(factors, d => d.factor);
+
+            let newBubbleGroups = bubbleGroups.enter().append("g")
+                .attr("class", "bubble");
+
+            newBubbleGroups.append("circle")
+                .attr("r", d => radiusScale(d.count))
+                .attr("class", "hover-border");
+
+            bubbleGroups.merge(newBubbleGroups)
+                .attr("transform", d => `translate(${d.x}, ${d.y})`)
+                .each(function (d) {
+                    let g = d3.select(this);
+                    let radius = radiusScale(d.count);
+                    arc.outerRadius(radius);
+
+                    let pieData = pie(Object.entries(d.pieData).map(entry => ({ key: entry[0], value: entry[1] })));
+                    let piePaths = g.selectAll("path").data(pieData);
+
+                    piePaths.enter().append("path")
+                        .attr("d", arc)
+                        .attr("fill", d => vehicleColorScale[d.data.key]);
+
+                    piePaths.attr("d", arc)
+                        .attr("fill", d => vehicleColorScale[d.data.key]);
+                });
+
+            bubbleGroups.exit().remove();
+        }
     }
 };
 
@@ -346,12 +455,8 @@ function drawVehiclesChart(filteredVehicles) {
                 .style("opacity", 0);
         })
         .on('click', (event, d) => {
-            filterDataByVehicle(d.type)
             selectedVehicles.push(d.type);
-            if (selectedVehicles.length == 2) {
-                drawPieCharts(selectedVehicles);
-                // selectedVehicles = []; 
-            }
+            filterDataByVehicle(d.type)
         });
 
     svg.append("g")
@@ -410,115 +515,6 @@ function drawIndividChart(indivdata) {
         .style('fill', '#69b3a2');
 };
 
-function drawPieCharts(selectedVehicles) {
-    const fs = factorsCount(globdata);
-    let pieChartData = {};
-
-    Object.keys(fs).forEach(factor => {
-        pieChartData[factor] = { [selectedVehicles[0]]: 0, [selectedVehicles[1]]: 0 };
-    });
-
-    globdata.forEach(row => {
-        let factor1 = row["CONTRIBUTING FACTOR VEHICLE 1"];
-        let factor2 = row["CONTRIBUTING FACTOR VEHICLE 2"];
-        let vehicle1 = row["VEHICLE TYPE CODE 1"];
-        let vehicle2 = row["VEHICLE TYPE CODE 2"];
-
-        if (selectedVehicles.includes(vehicle1)) {
-            if (factor1 != "none") pieChartData[factor1][vehicle1]++;
-        }
-        if (selectedVehicles.includes(vehicle2)) {
-            if (factor2 != "none") pieChartData[factor2][vehicle2]++;
-        }
-
-    });
-
-    Object.keys(pieChartData).forEach(factor => {
-        let vehicle1Count = pieChartData[factor][selectedVehicles[0]];
-        let vehicle2Count = pieChartData[factor][selectedVehicles[1]];
-
-        let total = vehicle1Count + vehicle2Count;
-        let vehicle1Norm = total > 0 ? vehicle1Count / total : 0;
-        let vehicle2Norm = total > 0 ? vehicle2Count / total : 0;
-
-        pieChartData[factor][selectedVehicles[0] + "_norm"] = vehicle1Norm;
-        pieChartData[factor][selectedVehicles[1] + "_norm"] = vehicle2Norm;
-    });
-
-    console.log(pieChartData);
-
-    const factors = Object.keys(fs).map(key => ({
-        factor: key,
-        count: fs[key],
-        pieData: pieChartData[key]
-    }));
-
-    let maxCount = d3.max(factors, d => d.count);
-    let radiusScale = d3.scaleSqrt().domain([0, maxCount]).range([10, 100]);
-
-    const pie = d3.pie()
-        .value(d => d.value)
-        .sort(null);
-
-    const arc = d3.arc()
-        .innerRadius(0);
-
-    d3.select("#bubbles").selectAll("*").remove();
-
-    var dimensions = {
-        svgWidth: 600,
-        svgHeight: 600,
-        margin: {
-            top: 50,
-            right: 50,
-            bottom: 50,
-            left: 100
-        }
-    };
-
-    const svg = d3.select('#bubbles')
-        .attr('width', dimensions.svgWidth)
-        .attr('height', dimensions.svgHeight);
-
-    let simulation = d3.forceSimulation(factors)
-        .force("charge", d3.forceManyBody().strength(15))
-        .force("center", d3.forceCenter(dimensions.svgWidth / 2, dimensions.svgHeight / 2))
-        .force("collision", d3.forceCollide().radius(d => radiusScale(d.count) + 1))
-        .on("tick", ticked);
-
-    function ticked() {
-        let bubbleGroups = svg.selectAll("g.bubble")
-        .data(factors, d => d.factor);
-
-        let newBubbleGroups = bubbleGroups.enter().append("g")
-            .attr("class", "bubble");
-
-        newBubbleGroups.append("circle")
-            .attr("r", d => radiusScale(d.count))
-            .attr("class", "hover-border");
-
-        bubbleGroups.merge(newBubbleGroups)
-            .attr("transform", d => `translate(${d.x}, ${d.y})`)
-            .each(function(d) {
-                let g = d3.select(this);
-                let radius = radiusScale(d.count);
-                arc.outerRadius(radius);
-
-                let pieData = pie(Object.entries(d.pieData).map(entry => ({ key: entry[0], value: entry[1] })));
-                let piePaths = g.selectAll("path").data(pieData);
-
-                piePaths.enter().append("path")
-                    .attr("d", arc)
-                    .attr("fill", d => vehicleColorScale[d.data.key]);
-
-                piePaths.attr("d", arc) 
-                    .attr("fill", d => vehicleColorScale[d.data.key]);
-            });
-
-        bubbleGroups.exit().remove();
-    }
-};
-
 var isCombinedVisualization = true;
 
 function toggleVisualization() {
@@ -530,7 +526,7 @@ function toggleVisualization() {
     if (isCombinedVisualization) {
         button.classList.add("active");
         buttonText.textContent = "Show Individual Visualization";
-        drawBoroughsChart(bouroughCount(globdata), globgeodata, colorScale);
+        drawBoroughsChart(bouroughCount(globdata), colorScale);
     } else {
         button.classList.remove("active");
         buttonText.textContent = "Show Boroughs Visualization";
