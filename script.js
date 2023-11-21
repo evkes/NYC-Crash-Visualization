@@ -371,14 +371,12 @@ function drawBubbles(factorCounts) {
 
         function ticked() {
             let bubbleGroups = svg.selectAll("g.bubble")
-                .data(factors, d => d.factor);
-
+                .data(factors, d => d.factor)
+            
             let newBubbleGroups = bubbleGroups.enter().append("g")
-                .attr("class", "bubble");
-
-            newBubbleGroups.append("circle")
+                .attr("class", "bubble")
+                .append("circle")
                 .attr("r", d => radiusScale(d.count))
-                .attr("class", "hover-border");
 
             bubbleGroups.merge(newBubbleGroups)
                 .attr("transform", d => `translate(${d.x}, ${d.y})`)
@@ -393,12 +391,7 @@ function drawBubbles(factorCounts) {
                     piePaths.enter().append("path")
                         .attr("d", arc)
                         .attr("fill", d => vehicleColorScale[d.data.key]);
-
-                    piePaths.attr("d", arc)
-                        .attr("fill", d => vehicleColorScale[d.data.key]);
-                });
-
-            bubbleGroups.exit().remove();
+                })
         }
     }
 };
