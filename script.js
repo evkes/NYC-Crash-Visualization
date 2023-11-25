@@ -316,20 +316,6 @@ function drawBubbles(factorCounts) {
 
         });
 
-        Object.keys(pieChartData).forEach(factor => {
-            let vehicle1Count = pieChartData[factor][selectedVehicles[0]];
-            let vehicle2Count = pieChartData[factor][selectedVehicles[1]];
-
-            let total = vehicle1Count + vehicle2Count;
-            let vehicle1Norm = total > 0 ? vehicle1Count / total : 0;
-            let vehicle2Norm = total > 0 ? vehicle2Count / total : 0;
-
-            pieChartData[factor][selectedVehicles[0] + "_norm"] = vehicle1Norm;
-            pieChartData[factor][selectedVehicles[1] + "_norm"] = vehicle2Norm;
-        });
-
-        console.log(pieChartData);
-
         const factors = Object.keys(factorCounts).map(key => ({
             factor: key,
             count: factorCounts[key],
@@ -363,11 +349,15 @@ function drawBubbles(factorCounts) {
             .attr('width', dimensions.svgWidth)
             .attr('height', dimensions.svgHeight);
 
+        d3.select("#bubbles").selectAll("*").remove();
+
         let simulation = d3.forceSimulation(factors)
             .force("charge", d3.forceManyBody().strength(15))
             .force("center", d3.forceCenter(dimensions.svgWidth / 2, dimensions.svgHeight / 2))
             .force("collision", d3.forceCollide().radius(d => radiusScale(d.count) + 1))
             .on("tick", ticked);
+        
+        d3.select("#bubbles").selectAll("*").remove();
 
         function ticked() {
             let bubbleGroups = svg.selectAll("g.bubble")
