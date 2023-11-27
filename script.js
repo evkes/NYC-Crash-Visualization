@@ -244,6 +244,8 @@ function drawPies(factorCounts, data) {
         };
     });
 
+    console.log(factors)
+
     let factorGroups = svg.selectAll(".factor-group")
         .data(factors, d => d.factor)
         .enter()
@@ -296,9 +298,9 @@ function drawPies(factorCounts, data) {
 
 function countVehicleForFactor(data, vehicle, factor) {
     return data.filter(row => 
-        (row["CONTRIBUTING FACTOR VEHICLE 1"] === factor || row["CONTRIBUTING FACTOR VEHICLE 2"] === factor) &&
-        (row["VEHICLE TYPE CODE 1"] === vehicle || row["VEHICLE TYPE CODE 2"] === vehicle)
-    ).length;
+        (row["CONTRIBUTING FACTOR VEHICLE 1"] === factor && row["VEHICLE TYPE CODE 1"] === vehicle ) ||
+        (row["CONTRIBUTING FACTOR VEHICLE 2"] === factor) && row["VEHICLE TYPE CODE 2"] === vehicle)
+    .length;
 }
 
 function drawBubbles(factorCounts) {
