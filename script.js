@@ -249,6 +249,7 @@ function drawPies(factorCounts, data) {
         .enter()
         .append("g")
         .attr("class", "factor-group")
+        .attr("class", "hover-border")
         .each(function (d) {
             var group = d3.select(this);
             group.selectAll('path')
@@ -264,8 +265,6 @@ function drawPies(factorCounts, data) {
                 tooltip.html("<b>" + d.factor + ":</b><br/> Crashes total: " + d.count + "<br/>" + d.vehicles[0].data.type + ": " + d.vehicles[0].data.count + "<br/>" + d.vehicles[1].data.type + ": " + d.vehicles[1].data.count)
                     .style("left", (event.pageX) + "px")
                     .style("top", (event.pageY - 28) + "px");
-                
-                console.log(d)
             })
             .on('mouseout', () => {
                 tooltip.transition()
