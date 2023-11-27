@@ -63,7 +63,7 @@ function updateVisualization(data) {
         drawIndividChart(data)
     }
 
-
+    
     let filteredVehicles = vehiclesCount(data);
 
     if (selectedVehicles.length >= 2) {
@@ -72,7 +72,14 @@ function updateVisualization(data) {
     else {
         drawBubbles(factorsCount(data));
     }
-    drawVehiclesChart(filteredVehicles);
+    if (selectedVehicles.length <= 1) {
+        drawVehiclesChart(filteredVehicles);
+    }
+    else {
+        console.log(selectedVehicles)
+        updateVehiclesChart();
+    }
+    
 
 }
 
@@ -156,7 +163,6 @@ function vehiclesCount(data) {
     let filteredVehicles = Object.entries(vehicleCounts)
         .map(([type, count]) => ({ type, count }));
 
-    // Sort if necessary
     filteredVehicles.sort((a, b) => b.count - a.count);
 
     return filteredVehicles;
@@ -364,6 +370,16 @@ function drawBubbles(factorCounts) {
         }
 }
 
+function updateVehiclesChart() {
+    d3.selectAll(".bar").attr("fill", function(d) {
+        if (selectedVehicles.includes(d.type)) {
+            return vehicleColorScale[d.type];
+        } else {
+            return "gray"; 
+        };
+    })
+}
+
 function drawVehiclesChart(filteredVehicles) {
 
     var dimensions = {
@@ -401,7 +417,13 @@ function drawVehiclesChart(filteredVehicles) {
         .attr("y", d => yScale(d.count))
         .attr("width", xScale.bandwidth())
         .attr("height", d => dimensions.height - yScale(d.count))
-        .attr("fill", d => vehicleColorScale[d.type])
+        .attr("fill", function(d) {
+            if (selectedVehicles.includes(d.type) || selectedVehicles.length < 1) {
+                return vehicleColorScale[d.type];
+            } else {
+                return "gray"; 
+            }
+        })
         .on('mouseover', (event, d) => {
             tooltip.transition()
                 .duration(200)
@@ -417,7 +439,7 @@ function drawVehiclesChart(filteredVehicles) {
         })
         .on('click', (event, d) => {
             selectedVehicles.push(d.type);
-            filterDataByVehicle(d.type)
+            filterDataByVehicle(d.type);
         });
 
     svg.append("g")
