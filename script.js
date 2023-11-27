@@ -244,8 +244,6 @@ function drawPies(factorCounts, data) {
         };
     });
 
-    console.log(factors)
-
     let factorGroups = svg.selectAll(".factor-group")
         .data(factors, d => d.factor)
         .enter()
@@ -263,9 +261,11 @@ function drawPies(factorCounts, data) {
                 tooltip.transition()
                     .duration(200)
                     .style("opacity", .9);
-                tooltip.html("<b>" + d.factor + ":</b><br/>" + d.count + " crashes")
+                tooltip.html("<b>" + d.factor + ":</b><br/> Crashes total: " + d.count + "<br/>" + d.vehicles[0].data.type + ": " + d.vehicles[0].data.count + "<br/>" + d.vehicles[1].data.type + ": " + d.vehicles[1].data.count)
                     .style("left", (event.pageX) + "px")
                     .style("top", (event.pageY - 28) + "px");
+                
+                console.log(d)
             })
             .on('mouseout', () => {
                 tooltip.transition()
