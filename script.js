@@ -58,7 +58,13 @@ d3.csv("cleaned_crash_data_zipc.csv").then(data => {
 });
 
 function updateVisualization(data) {
-    drawBoroughsChart(bouroughCount(data), colorScale);
+    if (isCombinedVisualization) {
+        drawBoroughsChart(bouroughCount(data), colorScale);
+    }
+    else {
+        drawIndividChart(data)
+    }
+
 
     let filteredVehicles = vehiclesCount(data);
 
@@ -208,37 +214,36 @@ function drawBoroughsChart(boroughCounts, colorScale) {
 }
 
 function drawBubbles(factorCounts) {
+    var dimensions = {
+        svgWidth: 600,
+        svgHeight: 600,
+        margin: {
+            top: 50,
+            right: 50,
+            bottom: 50,
+            left: 100
+        }
+    };
+    var bubbles = null
+
+    const svg = d3.select('#bubbles')
+        .attr('width', dimensions.svgWidth)
+        .attr('height', dimensions.svgHeight);
+    
+    let factors = Object.keys(factorCounts).map(key => ({
+        factor: key,
+        count: factorCounts[key]
+    }));
+
+    let maxCount = d3.max(factors, d => d.count);
+    
+    let radiusScale = d3.scaleSqrt()
+        .domain([0, maxCount])
+        .range([10, 100]);
+    
+    labelThreshold = maxCount * 0.05;
+
     if (selectedVehicles.length < 2) {
-        var dimensions = {
-            svgWidth: 600,
-            svgHeight: 600,
-            margin: {
-                top: 50,
-                right: 50,
-                bottom: 50,
-                left: 100
-            }
-        };
-
-        d3.select("#bubbles").selectAll("*").remove();
-
-        const svg = d3.select('#bubbles')
-            .attr('width', dimensions.svgWidth)
-            .attr('height', dimensions.svgHeight);
-
-        let factors = Object.keys(factorCounts).map(key => ({
-            factor: key,
-            count: factorCounts[key]
-        }));
-
-        let maxCount = d3.max(factors, d => d.count);
-
-        let radiusScale = d3.scaleSqrt()
-            .domain([0, maxCount])
-            .range([10, 100]);
-
-        labelThreshold = maxCount * 0.05;
-
         let simulation = d3.forceSimulation(factors)
             .force("charge", d3.forceManyBody().strength(15))
             .force("center", d3.forceCenter(dimensions.svgWidth / 2, dimensions.svgHeight / 2))
@@ -247,7 +252,7 @@ function drawBubbles(factorCounts) {
 
         function ticked() {
 
-            let bubbles = svg.selectAll("circle")
+            bubbles = svg.selectAll("circle")
                 .data(factors, d => d.factor)
                 .attr("class", "hover-border")
                 .on('mouseover', (event, d) => {
@@ -272,7 +277,8 @@ function drawBubbles(factorCounts) {
                 .attr("fill", "lightgrey")
                 .merge(bubbles)
                 .attr("cx", d => d.x)
-                .attr("cy", d => d.y);
+                .attr("cy", d => d.y)
+                .attr("id", "poop");
 
             bubbles.exit().remove();
 
@@ -316,53 +322,26 @@ function drawBubbles(factorCounts) {
 
         });
 
-        const factors = Object.keys(factorCounts).map(key => ({
+        factors = Object.keys(factorCounts).map(key => ({
             factor: key,
             count: factorCounts[key],
             pieData: pieChartData[key]
         }));
 
-        let maxCount = d3.max(factors, d => d.count);
-        let radiusScale = d3.scaleSqrt().domain([0, maxCount]).range([10, 100]);
+        const pie = d3.pie().value(d => d.value).sort(null);
 
-        const pie = d3.pie()
-            .value(d => d.value)
-            .sort(null);
-
-        const arc = d3.arc()
-            .innerRadius(0);
-
-        d3.select("#bubbles").selectAll("*").remove();
-
-        var dimensions = {
-            svgWidth: 600,
-            svgHeight: 600,
-            margin: {
-                top: 50,
-                right: 50,
-                bottom: 50,
-                left: 100
-            }
-        };
-
-        const svg = d3.select('#bubbles')
-            .attr('width', dimensions.svgWidth)
-            .attr('height', dimensions.svgHeight);
-
-        d3.select("#bubbles").selectAll("*").remove();
-
+        const arc = d3.arc().innerRadius(0);
+        
         let simulation = d3.forceSimulation(factors)
             .force("charge", d3.forceManyBody().strength(15))
             .force("center", d3.forceCenter(dimensions.svgWidth / 2, dimensions.svgHeight / 2))
             .force("collision", d3.forceCollide().radius(d => radiusScale(d.count) + 1))
-            .on("tick", ticked);
-        
-        d3.select("#bubbles").selectAll("*").remove();
+            .on("tick", ticked2);
 
-        function ticked() {
+        function ticked2() {
             let bubbleGroups = svg.selectAll("g.bubble")
                 .data(factors, d => d.factor)
-            
+
             let newBubbleGroups = bubbleGroups.enter().append("g")
                 .attr("class", "bubble")
                 .append("circle")
@@ -380,7 +359,20 @@ function drawBubbles(factorCounts) {
 
                     piePaths.enter().append("path")
                         .attr("d", arc)
-                        .attr("fill", d => vehicleColorScale[d.data.key]);
+                        .attr("fill", d => vehicleColorScale[d.data.key])
+                        .on('mouseover', (event, d) => {
+                            tooltip.transition()
+                                .duration(200)
+                                .style("opacity", .9);
+                            tooltip.html("<b>" + d.data.key + ":</b><br/>" + d.data.value + " crashes")
+                                .style("left", (event.pageX) + "px")
+                                .style("top", (event.pageY - 28) + "px");
+                        })
+                        .on('mouseout', () => {
+                            tooltip.transition()
+                                .duration(500)
+                                .style("opacity", 0);
+                        })
                 })
         }
     }
@@ -449,8 +441,6 @@ function drawVehiclesChart(filteredVehicles) {
     svg.append("g")
         .call(d3.axisLeft(yScale));
 };
-
-
 
 function drawIndividChart(indivdata) {
 
