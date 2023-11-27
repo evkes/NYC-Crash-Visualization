@@ -63,3 +63,7 @@ button.active {
   text-align: center;
   margin: 20px;
 }
+
+footer {
+  margin-top: auto;
+}
