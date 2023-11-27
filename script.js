@@ -4,8 +4,6 @@ const colorScale = d3.scaleLinear()
     .domain([0, maxCount])
     .range(["#E0F8FF", "#000080"]);
 
-let labelThreshold = maxCount;
-
 const attributes = [
     "NUMBER OF PERSONS INJURED",
     "NUMBER OF PERSONS KILLED",
@@ -68,7 +66,12 @@ function updateVisualization(data) {
 
     let filteredVehicles = vehiclesCount(data);
 
-    drawBubbles(factorsCount(data));
+    if (selectedVehicles.length >= 2) {
+        drawPies(factorsCount(data), data)
+    }
+    else {
+        drawBubbles(factorsCount(data));
+    }
     drawVehiclesChart(filteredVehicles);
 
 }
@@ -211,6 +214,91 @@ function drawBoroughsChart(boroughCounts, colorScale) {
         });
 
     paths.exit().remove();
+}
+
+function drawPies(factorCounts, data) {
+    d3.select('#bubbles').selectAll("*").remove();
+
+    var dimensions = { svgWidth: 600, svgHeight: 600, margin: { top: 50, right: 50, bottom: 50, left: 100 } };
+    const svg = d3.select('#bubbles')
+        .attr('width', dimensions.svgWidth)
+        .attr('height', dimensions.svgHeight);
+
+    let maxCount = d3.max(Object.values(factorCounts));
+    let labelThreshold = maxCount * 0.05;
+    let radiusScale = d3.scaleSqrt().domain([0, maxCount]).range([10, 100]);
+
+    var pie = d3.pie().value(d => d.count);
+    var arc = d3.arc().innerRadius(0);
+
+    let factors = Object.keys(factorCounts).map(factor => {
+        let vehicleCounts = selectedVehicles.reduce((acc, vehicle) => {
+            acc[vehicle] = countVehicleForFactor(data, vehicle, factor);
+            return acc;
+        }, {});
+
+        return {
+            factor: factor,
+            count: factorCounts[factor],
+            vehicles: pie(Object.entries(vehicleCounts).map(([type, count]) => ({ type, count })))
+        };
+    });
+
+    let factorGroups = svg.selectAll(".factor-group")
+        .data(factors, d => d.factor)
+        .enter()
+        .append("g")
+        .attr("class", "factor-group")
+        .each(function (d) {
+            var group = d3.select(this);
+            group.selectAll('path')
+                .data(d.vehicles)
+                .enter().append('path')
+                .attr('d', arc.outerRadius(radiusScale(d.count)))
+                .attr('fill', d => vehicleColorScale[d.data.type]);
+
+            group.on('mouseover', (event, d) => {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html("<b>" + d.factor + ":</b><br/>" + d.count + " crashes")
+                    .style("left", (event.pageX) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on('mouseout', () => {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            })
+            .on('click', (event, d) => {
+                filterDataByAttribute(d.factor)
+            });
+        });
+    
+    factorGroups.append("text")
+            .filter(d => d.count >= labelThreshold)
+            .text(d => d.factor)
+            .attr("text-anchor", "middle")
+            .attr("alignment-baseline", "middle")
+            .attr("font-size", "10px")
+            .attr("fill", "black");
+
+    let simulation = d3.forceSimulation(factors)
+        .force("charge", d3.forceManyBody().strength(15))
+        .force("center", d3.forceCenter(dimensions.svgWidth / 2, dimensions.svgHeight / 2))
+        .force("collision", d3.forceCollide().radius(d => radiusScale(d.count) + 1))
+        .on("tick", ticked);
+
+    function ticked() {
+        factorGroups.attr("transform", d => `translate(${d.x},${d.y})`);
+    }
+}
+
+function countVehicleForFactor(data, vehicle, factor) {
+    return data.filter(row => 
+        (row["CONTRIBUTING FACTOR VEHICLE 1"] === factor || row["CONTRIBUTING FACTOR VEHICLE 2"] === factor) &&
+        (row["VEHICLE TYPE CODE 1"] === vehicle || row["VEHICLE TYPE CODE 2"] === vehicle)
+    ).length;
 }
 
 function drawBubbles(factorCounts) {
