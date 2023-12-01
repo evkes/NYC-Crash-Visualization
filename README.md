@@ -1,7 +1,7 @@
 # Navigating Road Safety: A Data-Driven Exploration of Motor Vehicle Collisions in NYC
 NYC Crash Visualization using D3.js for CPSC 4030 at Clemson
 
-Group Members: Jordyn Brooks, Evan Kessler, Michael Reed
+Group Members: Jordyn Brooks and Evan Kessler
 
 Project Report: <https://docs.google.com/document/d/1mIyR2QH3yoJXRMxj5x4j202rxkz1p2BgtmO8ua5EAQo/edit?usp=sharing>
 
