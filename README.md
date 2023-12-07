@@ -17,6 +17,7 @@ Project Website: <https://evkes.github.io/NYC-Crash-Visualization/>
 - **global.css**: Style sheet
 - **index.html**: Main website page
 - **script.js**: D3 code for visualizations
+- **video.html**: Website page including project video
 
 ## Citations
 NYPD. (2014). Motor Vehicle Collisions - Crashes [Dataset]. In NYC OpenData. <https://data.cityofnewyork.us/Public-Safety/Motor-Vehicle-Collisions-Crashes/h9gi-nx95>
